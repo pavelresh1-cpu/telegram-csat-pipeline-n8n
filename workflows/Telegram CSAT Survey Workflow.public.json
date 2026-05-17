@@ -1,0 +1,143 @@
+{
+  "name": "Telegram CSAT Survey Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "chatId": "={{ $json.body.chat_id }}",
+        "text": "Please rate your support experience",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "=😡 Bad ",
+                    "additionalFields": {
+                      "callback_data": "={{ 'csat:' + $json.body.ticket_id + ':1' }}"
+                    }
+                  },
+                  {
+                    "text": "=😐 Okay",
+                    "additionalFields": {
+                      "callback_data": "={{ 'csat:' + $json.body.ticket_id + ':2' }}"
+                    }
+                  },
+                  {
+                    "text": "=🙂 Good",
+                    "additionalFields": {
+                      "callback_data": "={{ 'csat:' + $json.body.ticket_id + ':3' }}"
+                    }
+                  },
+                  {
+                    "text": "=😍 Great",
+                    "additionalFields": {
+                      "callback_data": "={{ 'csat:' + $json.body.ticket_id + ':4' }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        256,
+        0
+      ],
+      "id": "5b6cb967-3269-4842-8605-d8a4c09fd5a3",
+      "name": "Send csat",
+      "webhookId": "780d70c2-0f6b-4f06-8577-fd5dab8bfdf1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-csat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "4db12214-ce89-4bd3-b96f-738a91cbf110",
+      "name": "ticket closed API",
+      "webhookId": "df71c06f-223d-4479-8ce6-4a7b333a570d"
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('ticket closed API').first().json.body || $('ticket closed API').first().json;\nconst tg = $input.first().json.result || $input.first().json;\n\nreturn [\n  {\n    json: {\n      ok: true,\n      event: \"csat_sent\",\n      ticket_id: source.ticket_id,\n      client_chat_id: source.client_chat_id,\n      agent: source.agent,\n      queue: source.queue,\n      telegram_message_id: tg.message_id,\n      sent_at: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        0
+      ],
+      "id": "71e9b31b-12a7-43bb-b46f-d53b4ec4b8ef",
+      "name": "build send log"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        0
+      ],
+      "id": "70d95a6c-c678-4155-95fc-75d3d035b0c4",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Send csat": {
+      "main": [
+        [
+          {
+            "node": "build send log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ticket closed API": {
+      "main": [
+        [
+          {
+            "node": "Send csat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "build send log": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "tags": []
+}

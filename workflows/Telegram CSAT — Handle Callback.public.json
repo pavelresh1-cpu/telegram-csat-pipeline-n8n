@@ -1,0 +1,858 @@
+{
+  "name": "Telegram CSAT — Handle Callback",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "62447686-b96f-40b4-bcdb-2a01c14c7092",
+      "name": "Callback Query",
+      "webhookId": "6b181791-32d8-486b-8b23-97c56e4ae132"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "78c2ceec-6dcd-45cf-9d76-3e0b2ae1ff70",
+              "leftValue": "={{ $json.callback_query.data.startsWith(\"csat:\") }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "731e6ca6-d03e-45fd-a753-fffa7742bd14",
+      "name": "Is CSAT Rating Callback?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const callback = $input.first().json.callback_query;\n\nconst [type, ticketId, ratingRaw] = callback.data.split(\":\");\n\nreturn [\n  {\n    json: {\n      type,\n      ticket_id: ticketId, // НЕ Number(), потому что TEST-1001 — строка\n      rating: Number(ratingRaw),\n      user_id: callback.from.id,\n      username: callback.from.username || null,\n      chat_id: callback.message.chat.id,\n      message_id: callback.message.message_id,\n      callback_query_id: callback.id,\n      vote_key: `${ticketId}:${callback.from.id}`,\n      rated_at: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        -16
+      ],
+      "id": "d1ed05fc-3050-410a-82f8-3e91e94f06df",
+      "name": "Parse CSAT Rating"
+    },
+    {
+      "parameters": {
+        "operation": "rowExists",
+        "dataTableId": {
+          "__rl": true,
+          "value": "ylRVmKHwQoiUVeaV",
+          "mode": "list",
+          "cachedResultName": "csat_results",
+          "cachedResultUrl": "/projects/asodS8Yq1helQJfP/datatables/ylRVmKHwQoiUVeaV"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "ticket_id",
+              "keyValue": "= {{ $json.ticket_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        704,
+        -16
+      ],
+      "id": "ca6cddc5-f590-4363-9673-a3a65d07e585",
+      "name": "Find Existing CSAT Result",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "84163184-53b4-4644-98ab-a46612c8bc3e",
+              "leftValue": "={{ Object.keys($json).length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        912,
+        -16
+      ],
+      "id": "91ba1bb0-ee67-4cd9-9ef1-6aa41da33e2d",
+      "name": "Answer Already Rated?"
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "queryId": "={{ $('Parse CSAT Rating').item.json.callback_query_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1104,
+        -288
+      ],
+      "id": "0a0d28a8-9f5a-49ce-9e4b-185d9a21c521",
+      "name": "Answer Already Rated",
+      "webhookId": "532a4aa8-302a-4bcd-aa85-6f1bfa628e10"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "ylRVmKHwQoiUVeaV",
+          "mode": "list",
+          "cachedResultName": "csat_results",
+          "cachedResultUrl": "/projects/asodS8Yq1helQJfP/datatables/ylRVmKHwQoiUVeaV"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ticket_id": "={{ $('Parse CSAT Rating').item.json.ticket_id }}",
+            "rating": "={{ $('Parse CSAT Rating').item.json.rating }}",
+            "user_id": "= {{ $('Parse CSAT Rating').item.json.user_id }}",
+            "username": "= {{ $('Parse CSAT Rating').item.json.username }}",
+            "chat_id": "= {{ $('Parse CSAT Rating').item.json.chat_id }}",
+            "message_id": "= {{ $('Parse CSAT Rating').item.json.message_id }}",
+            "rated_at": "={{ $('Parse CSAT Rating').item.json.rated_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ticket_id",
+              "displayName": "ticket_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "rating",
+              "displayName": "rating",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "username",
+              "displayName": "username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "rated_at",
+              "displayName": "rated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1168,
+        -32
+      ],
+      "id": "927753ee-6e7b-4abb-a825-b85195e5c412",
+      "name": "Insert CSAT Result"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "56935c2c-ae05-4d5c-be13-6feae7fabb27",
+              "leftValue": "={{ $json.rating >= 3 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1312,
+        64
+      ],
+      "id": "827ff489-03b6-4eaf-bcd2-f619ae8f3f65",
+      "name": "Rating Requires Follow-up?"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse CSAT Rating').item.json.chat_id }}",
+        "text": "={{ 'Sorry to hear that. What went wrong with ticket #' + $('Parse CSAT Rating').item.json.ticket_id + '?' }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Too slow",
+                    "additionalFields": {
+                      "callback_data": "={{ 'csat_reason:' + $('Parse CSAT Rating').item.json.ticket_id + ':too_slow' }}"
+                    }
+                  },
+                  {
+                    "text": "=Not solved ",
+                    "additionalFields": {
+                      "callback_data": "={{ 'csat_reason:' + $('Parse CSAT Rating').item.json.ticket_id + ':not_solved' }}"
+                    }
+                  },
+                  {
+                    "text": " Agent was rude",
+                    "additionalFields": {
+                      "callback_data": "={{ 'csat_reason:' + $('Parse CSAT Rating').item.json.ticket_id + ':rude' }}"
+                    }
+                  },
+                  {
+                    "text": "Other",
+                    "additionalFields": {
+                      "callback_data": "=={{ 'csat_reason:' + $('Parse CSAT Rating').item.json.ticket_id + ':other' }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_notification": false,
+          "disable_web_page_preview": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1744,
+        80
+      ],
+      "id": "f65cb3af-b759-4556-9896-876f60289cf0",
+      "name": "Send Reason Follow-up Survey",
+      "webhookId": "a0be1228-134c-40e3-8e36-2be3521732db",
+      "notesInFlow": false,
+      "retryOnFail": false,
+      "executeOnce": false,
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "ylRVmKHwQoiUVeaV",
+          "mode": "list",
+          "cachedResultName": "csat_results",
+          "cachedResultUrl": "/projects/asodS8Yq1helQJfP/datatables/ylRVmKHwQoiUVeaV"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "ticket_id",
+              "keyValue": "={{ Number($json.callback_query.data.split(':')[1]) }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        144,
+        256
+      ],
+      "id": "2608740e-605c-4f35-8f01-f9ab93b8ab89",
+      "name": "Find CSAT Row For Reason"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f5b4f3b9-295f-45de-a72b-82ec0686c560",
+              "leftValue": "={{ $json.followup_sent !== true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        384,
+        240
+      ],
+      "id": "547e07ec-0c01-41ae-8092-207019c98eb2",
+      "name": "Should Accept Reason?",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "jsCode": "const tableRow = $input.first().json;\nconst callback = $('Callback Query').first().json.callback_query;\n\nconst [type, ticketId, reason] = callback.data.split(\":\");\n\nreturn [\n  {\n    json: {\n      ticket_id: Number(ticketId),\n      reason,\n      reason_user_id: callback.from.id,\n      reason_username: callback.from.username || null,\n      reason_chat_id: callback.message.chat.id,\n      reason_message_id: callback.message.message_id,\n      reason_callback_query_id: callback.id,\n      reason_received_at: new Date().toISOString(),\n\n      // данные из таблицы, если нужны дальше\n      followup_sent: tableRow.followup_sent,\n      existing_reason: tableRow.reason || null\n    }\n  }\n];;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        224
+      ],
+      "id": "c41f48d4-2861-41a0-a7c4-dacc2b4da5c7",
+      "name": "Parse CSAT Reason"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "ylRVmKHwQoiUVeaV",
+          "mode": "list",
+          "cachedResultName": "csat_results",
+          "cachedResultUrl": "/projects/asodS8Yq1helQJfP/datatables/ylRVmKHwQoiUVeaV"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "ticket_id",
+              "keyValue": "={{ $json.ticket_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "reason_user_id": "={{ $json.reason_user_id }}",
+            "reason_chat_id": "={{ $json.reason_chat_id }}",
+            "reason_message_id": "={{ $json.reason_message_id }}",
+            "reason": "={{ $json.reason }}",
+            "reason_username": "={{ $json.reason_username }}",
+            "reason_received_at": "= {{ $json.reason_received_at }}",
+            "followup_sent": true
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ticket_id",
+              "displayName": "ticket_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "rating",
+              "displayName": "rating",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "username",
+              "displayName": "username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "rated_at",
+              "displayName": "rated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "reason",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "reason_user_id",
+              "displayName": "reason_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "followup_sent",
+              "displayName": "followup_sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "reason_username",
+              "displayName": "reason_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "reason_chat_id",
+              "displayName": "reason_chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "reason_message_id",
+              "displayName": "reason_message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "reason_received_at",
+              "displayName": "reason_received_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        864,
+        224
+      ],
+      "id": "cade6ae8-da5b-4a60-88d7-b265a279a5c2",
+      "name": "Mark Follow-up Sent+Save CSAT Reason",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "queryId": "={{ $('Parse CSAT Reason').item.json.reason_callback_query_id }}",
+        "additionalFields": {
+          "text": "Thanks for your feedback!"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1056,
+        224
+      ],
+      "id": "cd8efaa7-b048-47aa-9c0c-73cd745848ec",
+      "name": "Answer Reason Saved",
+      "webhookId": "532a4aa8-302a-4bcd-aa85-6f1bfa628e10"
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "queryId": "={{ $('Callback Query').first().json.callback_query.id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        544,
+        432
+      ],
+      "id": "cd1a3538-8c58-438c-bacf-3adca41e811b",
+      "name": "Answer Unknown / Ignored Callback",
+      "webhookId": "532a4aa8-302a-4bcd-aa85-6f1bfa628e10"
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "queryId": "={{ $('Parse CSAT Rating').item.json.callback_query_id }}",
+        "additionalFields": {
+          "text": "Thanks for your feedback!"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1536,
+        -144
+      ],
+      "id": "702f407b-e6ff-41ec-8ea6-d37ccdba2e51",
+      "name": "Answer Rating Saved",
+      "webhookId": "532a4aa8-302a-4bcd-aa85-6f1bfa628e10"
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "queryId": "={{ $('Parse CSAT Rating').item.json.callback_query_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1536,
+        80
+      ],
+      "id": "f5e4093e-a81e-4d7e-8468-6ed87172b407",
+      "name": "Answer Low Rating Saved",
+      "webhookId": "532a4aa8-302a-4bcd-aa85-6f1bfa628e10"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Callback Query": {
+      "main": [
+        [
+          {
+            "node": "Is CSAT Rating Callback?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is CSAT Rating Callback?": {
+      "main": [
+        [
+          {
+            "node": "Parse CSAT Rating",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Find CSAT Row For Reason",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse CSAT Rating": {
+      "main": [
+        [
+          {
+            "node": "Find Existing CSAT Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Existing CSAT Result": {
+      "main": [
+        [
+          {
+            "node": "Answer Already Rated?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Already Rated?": {
+      "main": [
+        [
+          {
+            "node": "Answer Already Rated",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert CSAT Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert CSAT Result": {
+      "main": [
+        [
+          {
+            "node": "Rating Requires Follow-up?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rating Requires Follow-up?": {
+      "main": [
+        [
+          {
+            "node": "Answer Rating Saved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Answer Low Rating Saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reason Follow-up Survey": {
+      "main": [
+        []
+      ]
+    },
+    "Find CSAT Row For Reason": {
+      "main": [
+        [
+          {
+            "node": "Should Accept Reason?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Accept Reason?": {
+      "main": [
+        [
+          {
+            "node": "Parse CSAT Reason",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Answer Unknown / Ignored Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse CSAT Reason": {
+      "main": [
+        [
+          {
+            "node": "Mark Follow-up Sent+Save CSAT Reason",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Follow-up Sent+Save CSAT Reason": {
+      "main": [
+        [
+          {
+            "node": "Answer Reason Saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Reason Saved": {
+      "main": [
+        []
+      ]
+    },
+    "Answer Low Rating Saved": {
+      "main": [
+        [
+          {
+            "node": "Send Reason Follow-up Survey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "tags": []
+}
